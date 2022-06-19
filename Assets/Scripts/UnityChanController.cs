@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UnityChanController : MonoBehaviour
 {
@@ -29,6 +30,19 @@ public class UnityChanController : MonoBehaviour
     private bool _isEnd = false;
     // ゲーム終了時の速度減衰係数
     private float _coefficient = 0.99f;
+    // ゲーム終了時に表示するテキスト
+    private GameObject _stateText;
+
+    // スコアテキスト
+    private GameObject _scoreText;
+    // 得点
+    private int _score = 0;
+
+    // ボタン操作イベント
+    private bool _isLButtonDown = false;
+    private bool _isRButtonDown = false;
+    private bool _isJButtonDown = false;
+
 
     // Start is called before the first frame update
     void Start()
@@ -41,6 +55,12 @@ public class UnityChanController : MonoBehaviour
         this._myAnimator.SetFloat("Speed", 0.2f);
 
         this._myRigidbody = this.GetComponent<Rigidbody>();
+
+        // シーン中のstateTextオブジェクトを取得
+        this._stateText = GameObject.Find("GameResultText");
+
+        // scoreTextオブジェクト取得
+        this._scoreText = GameObject.Find("ScoreText");
     }
 
     // Update is called once per frame
@@ -60,19 +80,21 @@ public class UnityChanController : MonoBehaviour
         // 高さの入力速度
         var inputVelocityY = 0f;
 
-        if (Input.GetKey(KeyCode.LeftArrow) && (-this.transform.position.x < _movableRange))
+        if ((Input.GetKey(KeyCode.LeftArrow) || this._isLButtonDown) && (-this.transform.position.x < _movableRange))
         {
-            // 左右方向の速度を代入
+            // 左方向の速度になるよう反転して代入
             inputVelocityX = -this.velocityX;
         }
-        else if (Input.GetKey(KeyCode.RightArrow) && (this.transform.position.x < _movableRange))
+        else if ((Input.GetKey(KeyCode.RightArrow) || this._isRButtonDown) && (this.transform.position.x < _movableRange))
         {
+            // 右方向の速度を代入
             inputVelocityX = this.velocityX;
         }
 
-        // ジャンプをしていないときにスペースが押されたらジャンプ
-        if(Input.GetKeyDown(KeyCode.Space) && !IsJump(this.transform.position.y))
+        // ジャンプをしていないときにスペース/ジャンプボタンが押されたらジャンプ
+        if((Input.GetKeyDown(KeyCode.Space) || this._isJButtonDown) && !IsJump(this.transform.position.y))
         {
+            // 上方向の速度を代入
             inputVelocityY = Jump();
         }
         else
@@ -87,7 +109,7 @@ public class UnityChanController : MonoBehaviour
         }
 
         // ユニティちゃんを前進させる
-        this._myRigidbody.velocity = new Vector3(inputVelocityX, 0, this.velocityZ);
+        this._myRigidbody.velocity = new Vector3(inputVelocityX, inputVelocityY , this.velocityZ);
     }
 
     // ジャンプ中か
@@ -95,25 +117,38 @@ public class UnityChanController : MonoBehaviour
     {
         return y > 0.5;
     }
-
     float Jump()
     {
-        // ジャンプアニメーションに遷移
+        // ジャンプアニメーションの再生
         this._myAnimator.SetBool("Jump", true);
-        // 上方向の速度を代入
         return this.velocityY;
     }
+
+    // イベントトリガー
+    public void GetMyJumpButtonDown() => this._isJButtonDown = true;
+    public void GetMyJumpButtonUp() => this._isJButtonDown = false;
+    public void GetMyLeftButtonDown() => this._isLButtonDown = true;
+    public void GetMyLeftButtonUp()=>this._isLButtonDown=false;
+    public void GetMyRightButtonDown() => this._isRButtonDown = true;
+    public void GetMyRightButtonUp()=> this._isRButtonDown=false;
+
 
     private void OnTriggerEnter(Collider other)
     {
         if(other.gameObject.CompareTag(TagName.CarTag) || other.gameObject.CompareTag(TagName.TrafficConeTag))
         {
             this._isEnd = true;
+
+            // stateTextにGAMEOVER表示
+            this._stateText.GetComponent<Text>().text = "GAME OVER";
         }
 
         if(other.gameObject.CompareTag(TagName.GoalTag))
         {
             this._isEnd = true;
+
+            // stateTextにGAMECLEAR表示
+            this._stateText.GetComponent<Text>().text = "CLEAR!!";
         }
 
         if (other.gameObject.CompareTag(TagName.CoinTag))
@@ -121,6 +156,10 @@ public class UnityChanController : MonoBehaviour
             // パーティクル再生
             GetComponent<ParticleSystem>().Play();
             Destroy(other.gameObject);
+
+            // スコア加算
+            this._score += 10;
+            this._scoreText.GetComponent<Text>().text = $"Score {this._score}pt";
         }
     }
 }
